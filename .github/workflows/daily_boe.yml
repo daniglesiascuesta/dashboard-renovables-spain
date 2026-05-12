@@ -1,0 +1,29 @@
+name: BOE Renovables — Ejecución diaria
+
+on:
+  schedule:
+    - cron: '0 12 * * 1-5'  # 13:00h hora España (UTC+1), lunes a viernes
+  workflow_dispatch:          # permite ejecutarlo manualmente también
+
+jobs:
+  ejecutar-boe:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar librerías
+        run: pip install requests anthropic beautifulsoup4
+
+      - name: Ejecutar script
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python main.py
