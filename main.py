@@ -2,16 +2,20 @@ import requests
 import anthropic
 import json
 import os
+# DEBUG — verificar variables de entorno
+print("ANTHROPIC_KEY existe:", bool(os.environ.get("ANTHROPIC_API_KEY")))
+print("SUPABASE_URL existe:", bool(os.environ.get("SUPABASE_URL")))
+print("SUPABASE_KEY existe:", bool(os.environ.get("SUPABASE_KEY")))
+print("Todas las vars de entorno con SUPA:", [k for k in os.environ if "SUPA" in k])
 from bs4 import BeautifulSoup
 from datetime import date, timedelta
 
 # ============================================================
 # CONFIGURACIÓN — las keys vienen de variables de entorno
 # ============================================================
-ANTHROPIC_KEY = os.environ.get("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")
-SUPABASE_URL  = os.environ.get("https://nlokctyrxuykzzlfnrvz.supabase.co")
-SUPABASE_KEY  = os.environ.get("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sb2tjZnlyeHV5a3p6aWZucnZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NDEzOTMsImV4cCI6MjA5NDExNzM5M30.yk7OqKEgbSP4HSEIahtTR2M5_QtPY22ivcT71NA3wg4")
-
+ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY")
+SUPABASE_URL  = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY  = os.environ.get("SUPABASE_KEY")
 cliente = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
 
 # ============================================================
