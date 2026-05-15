@@ -64,21 +64,78 @@ def filtrar_relevantes(items):
 def clasificar(pub):
     mensaje = cliente.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=500,
-        messages=[{"role": "user", "content": f"""Analiza este texto del BOE y extrae datos en JSON.
+        max_tokens=800,
+        messages=[{"role": "user", "content": f"""Eres un experto en regulación y tramitación administrativa del sector de energías renovables en España. Tu tarea es analizar publicaciones del BOE y extraer información estructurada con máxima precisión.
 
-Texto: {pub['titulo']}
+TEXTO DEL BOE:
+{pub['titulo']}
 
-Devuelve ÚNICAMENTE un JSON con:
-- tipo_tramite, tecnologia, nombre_proyecto, empresa_promotora
-- potencia_mw (número o null), provincias (lista), comunidades_autonomas (lista)
-- estado_administrativo, relevante_renovables (true/false)
+INSTRUCCIONES DE EXTRACCIÓN:
 
-Solo el JSON, sin texto adicional."""}]
+1. tipo_tramite: Identifica el tipo de trámite administrativo usando EXCLUSIVAMENTE estos códigos:
+   - "AAP" → Autorización Administrativa Previa
+   - "AAC" → Autorización Administrativa de Construcción
+   - "AAE" → Autorización Administrativa de Explotación
+   - "DIA" → Declaración de Impacto Ambiental
+   - "DUP" → Declaración de Utilidad Pública
+   - "IP" → Información Pública
+   - "AAP+DIA" → Tramitación conjunta AAP y DIA
+   - "AAP+AAC" → Tramitación conjunta AAP y AAC
+   - "MOD" → Modificación de proyecto
+   - "TIT" → Cambio de titularidad
+   - "RES" → Resolución administrativa
+   - "LIC" → Licencia o permiso municipal
+   - "OTRO" → Cualquier otro trámite
+
+2. tecnologia: Tecnología principal del proyecto:
+   - "Fotovoltaico" → plantas solares fotovoltaicas
+   - "Eólico" → parques eólicos onshore
+   - "Eólico offshore" → parques eólicos marinos
+   - "BESS" → sistemas de almacenamiento por batería
+   - "Hibridación" → proyectos que combinan dos o más tecnologías
+   - "LAT" → línea de alta tensión / infraestructura de evacuación
+   - "SET" → subestación eléctrica
+   - "Termosolar" → plantas termosolares
+   - "Hidráulica" → centrales hidroeléctricas
+   - "OTRO" → tecnología no identificada
+
+3. nombre_proyecto: Nombre oficial del proyecto exactamente como aparece en el texto, sin abreviar.
+
+4. empresa_promotora: Razón social completa de la empresa promotora. Si aparecen varias, incluye la principal. null si no se menciona.
+
+5. potencia_mw: Potencia en MW como número decimal. Convierte si aparece en kW (dividir entre 1000). null si no se menciona.
+
+6. provincias: Lista con todas las provincias afectadas en español estándar con tildes correctas.
+
+7. municipios: Lista con todos los municipios mencionados, si aparecen.
+
+8. comunidades_autonomas: Lista con todas las comunidades autónomas afectadas, nombre oficial completo.
+
+9. estado_administrativo: Estado exacto del trámite:
+   - "Información pública" → en fase de exposición pública
+   - "Autorizado" → resolución favorable emitida
+   - "Denegado" → resolución desfavorable
+   - "En tramitación" → en proceso sin resolución
+   - "Modificación aprobada" → modificación de proyecto aprobada
+   - "Caducado" → expediente caducado
+
+10. organismo_publicador: Organismo que publica el anuncio (ej. "Ministerio para la Transición Ecológica", "Delegación del Gobierno en Castilla y León", etc.)
+
+11. relevante_renovables: true si el proyecto es claramente del sector de energías renovables o infraestructura de evacuación asociada. false en caso contrario.
+
+12. resumen: Resumen ejecutivo del trámite en máximo 2 frases, claro y directo, en español profesional.
+
+REGLAS IMPORTANTES:
+- Usa siempre caracteres españoles correctos: á, é, í, ó, ú, ñ, ü
+- Si un campo no puede determinarse con certeza, devuelve null
+- No inventes datos que no aparezcan explícitamente en el texto
+- Las listas vacías se representan como []
+
+Devuelve ÚNICAMENTE el JSON válido, sin texto adicional, sin bloques de código markdown."""}]
     )
     texto = mensaje.content[0].text.strip().removeprefix("```json").removesuffix("```").strip()
-    return json.loads(texto)
-
+    datos = json.loads(texto)
+    return json.loads(json.dumps(datos, ensure_ascii=False))
 # ============================================================
 # GUARDAR EN SUPABASE
 # ============================================================
