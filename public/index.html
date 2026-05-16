@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Renovables BOE — Seguimiento de proyectos renovables en España</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+    header { background: #0f172a; color: white; padding: 24px 40px; display: flex; align-items: center; gap: 16px; }
+    header h1 { font-size: 22px; font-weight: 700; }
+    header span { background: #22c55e; color: white; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+    .subtitle { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+    .container { max-width: 1300px; margin: 0 auto; padding: 32px 24px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+    .stat { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; }
+    .stat-value { font-size: 32px; font-weight: 700; color: #0f172a; }
+    .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .filters { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .filters input, .filters select { padding: 9px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #1e293b; background: #f8fafc; }
+    .filters input { flex: 1; min-width: 200px; }
+    .btn-clear { padding: 9px 16px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; cursor: pointer; color: #64748b; }
+    .btn-clear:hover { background: #e2e8f0; }
+    .table-wrap { background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #f8fafc; }
+    th { padding: 13px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-eolico { background: #dbeafe; color: #1d4ed8; }
+    .badge-fotovoltaico { background: #fef9c3; color: #854d0e; }
+    .badge-bess { background: #dcfce7; color: #166534; }
+    .badge-hibridacion { background: #f3e8ff; color: #7e22ce; }
+    .badge-lat { background: #fee2e2; color: #991b1b; }
+    .badge-otro { background: #f1f5f9; color: #475569; }
+    .tramite { font-weight: 600; color: #0f172a; font-size: 13px; }
+    .empresa { color: #64748b; font-size: 13px; }
+    .mw { font-weight: 700; color: #0f172a; }
+    .link { color: #3b82f6; text-decoration: none; font-size: 12px; }
+    .link:hover { text-decoration: underline; }
+    .loading { text-align: center; padding: 60px; color: #94a3b8; }
+    .empty { text-align: center; padding: 60px; color: #94a3b8; }
+    .resumen-cell { font-size: 12px; color: #64748b; max-width: 300px; line-height: 1.5; }
+    .footer { text-align: center; padding: 32px; color: #94a3b8; font-size: 13px; }
+    @media (max-width: 768px) { .stats { grid-template-columns: repeat(2,1fr); } header { padding: 16px 20px; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>⚡ Renovables BOE</h1>
+    <div class="subtitle">Seguimiento automático de proyectos renovables en España</div>
+  </div>
+  <span>ACTUALIZACIÓN DIARIA</span>
+</header>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="total">—</div><div class="stat-label">Proyectos detectados</div></div>
+    <div class="stat"><div class="stat-value" id="eolicos">—</div><div class="stat-label">Parques eólicos</div></div>
+    <div class="stat"><div class="stat-value" id="fotovoltaicos">—</div><div class="stat-label">Plantas fotovoltaicas</div></div>
+    <div class="stat"><div class="stat-value" id="mw_total">—</div><div class="stat-label">MW totales detectados</div></div>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="buscar" placeholder="🔍 Buscar proyecto, empresa, municipio...">
+    <select id="filtro_tech">
+      <option value="">Todas las tecnologías</option>
+      <option value="Eólico">Eólico</option>
+      <option value="Fotovoltaico">Fotovoltaico</option>
+      <option value="BESS">BESS</option>
+      <option value="Hibridación">Hibridación</option>
+      <option value="LAT">LAT</option>
+      <option value="SET">SET</option>
+    </select>
+    <select id="filtro_tramite">
+      <option value="">Todos los trámites</option>
+      <option value="AAP">AAP</option>
+      <option value="AAC">AAC</option>
+      <option value="DIA">DIA</option>
+      <option value="AAP+DIA">AAP+DIA</option>
+      <option value="DUP">DUP</option>
+      <option value="IP">IP</option>
+    </select>
+    <select id="filtro_ccaa">
+      <option value="">Todas las CCAA</option>
+    </select>
+    <button class="btn-clear" onclick="limpiarFiltros()">✕ Limpiar</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Trámite</th>
+          <th>Tecnología</th>
+          <th>Proyecto</th>
+          <th>Empresa</th>
+          <th>MW</th>
+          <th>Ubicación</th>
+          <th>Estado</th>
+          <th>Resumen</th>
+          <th>Enlace</th>
+        </tr>
+      </thead>
+      <tbody id="tabla"></tbody>
+    </table>
+    <div id="loading" class="loading">Cargando proyectos...</div>
+    <div id="empty" class="empty" style="display:none">No se encontraron proyectos con los filtros aplicados.</div>
+  </div>
+</div>
+
+<div class="footer">
+  Datos extraídos automáticamente del BOE · Actualización diaria a las 13:00h · Powered by IA
+</div>
+
+<script>
+  const SUPABASE_URL = "https://nlokcfyrxuykzzifnrvz.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sb2tjZnlyeHV5a3p6aWZucnZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NDEzOTMsImV4cCI6MjA5NDExNzM5M30.yk7OqKEgbSP4HSEIahtTR2M5_QtPY22ivcT71NA3wg4
+";
+
+  let datos = [];
+
+  async function cargarDatos() {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/proyectos?select=*&order=fecha_publicacion.desc`, {
+        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+      });
+      datos = await res.json();
+      actualizarStats();
+      renderTabla(datos);
+      poblarCCAA();
+      document.getElementById("loading").style.display = "none";
+    } catch(e) {
+      document.getElementById("loading").textContent = "Error cargando datos.";
+    }
+  }
+
+  function actualizarStats() {
+    document.getElementById("total").textContent = datos.length;
+    document.getElementById("eolicos").textContent = datos.filter(d => d.tecnologia === "Eólico").length;
+    document.getElementById("fotovoltaicos").textContent = datos.filter(d => d.tecnologia === "Fotovoltaico").length;
+    const mw = datos.reduce((acc, d) => acc + (parseFloat(d.potencia_mw) || 0), 0);
+    document.getElementById("mw_total").textContent = mw.toFixed(0) + " MW";
+  }
+
+  function badgeClass(tech) {
+    const map = { "Eólico": "eolico", "Fotovoltaico": "fotovoltaico", "BESS": "bess", "Hibridación": "hibridacion", "LAT": "lat" };
+    return "badge badge-" + (map[tech] || "otro");
+  }
+
+  function renderTabla(filas) {
+    const tbody = document.getElementById("tabla");
+    const empty = document.getElementById("empty");
+    if (!filas.length) { tbody.innerHTML = ""; empty.style.display = "block"; return; }
+    empty.style.display = "none";
+    tbody.innerHTML = filas.map(d => `
+      <tr>
+        <td>${d.fecha_publicacion || "—"}</td>
+        <td><span class="tramite">${d.tipo_tramite || "—"}</span></td>
+        <td><span class="${badgeClass(d.tecnologia)}">${d.tecnologia || "—"}</span></td>
+        <td><strong>${d.nombre_proyecto || "—"}</strong></td>
+        <td class="empresa">${d.empresa_promotora || "—"}</td>
+        <td class="mw">${d.potencia_mw ? d.potencia_mw + " MW" : "—"}</td>
+        <td class="empresa">${Array.isArray(d.provincias) ? d.provincias.join(", ") : (d.provincias || "—")}</td>
+        <td>${d.estado_administrativo || "—"}</td>
+        <td class="resumen-cell">${d.resumen || "—"}</td>
+        <td>${d.enlace ? `<a class="link" href="${d.enlace}" target="_blank">BOE ↗</a>` : "—"}</td>
+      </tr>`).join("");
+  }
+
+  function poblarCCAA() {
+    const ccaas = [...new Set(datos.flatMap(d => Array.isArray(d.comunidades_autonomas) ? d.comunidades_autonomas : []))].sort();
+    const sel = document.getElementById("filtro_ccaa");
+    ccaas.forEach(c => { const o = document.createElement("option"); o.value = c; o.textContent = c; sel.appendChild(o); });
+  }
+
+  function filtrar() {
+    const buscar = document.getElementById("buscar").value.toLowerCase();
+    const tech = document.getElementById("filtro_tech").value;
+    const tramite = document.getElementById("filtro_tramite").value;
+    const ccaa = document.getElementById("filtro_ccaa").value;
+    const filtrados = datos.filter(d => {
+      const texto = `${d.nombre_proyecto} ${d.empresa_promotora} ${d.resumen} ${JSON.stringify(d.municipios)}`.toLowerCase();
+      return (!buscar || texto.includes(buscar))
+        && (!tech || d.tecnologia === tech)
+        && (!tramite || (d.tipo_tramite || "").includes(tramite))
+        && (!ccaa || (Array.isArray(d.comunidades_autonomas) ? d.comunidades_autonomas.includes(ccaa) : false));
+    });
+    renderTabla(filtrados);
+  }
+
+  function limpiarFiltros() {
+    document.getElementById("buscar").value = "";
+    document.getElementById("filtro_tech").value = "";
+    document.getElementById("filtro_tramite").value = "";
+    document.getElementById("filtro_ccaa").value = "";
+    renderTabla(datos);
+  }
+
+  document.getElementById("buscar").addEventListener("input", filtrar);
+  document.getElementById("filtro_tech").addEventListener("change", filtrar);
+  document.getElementById("filtro_tramite").addEventListener("change", filtrar);
+  document.getElementById("filtro_ccaa").addEventListener("change", filtrar);
+
+  cargarDatos();
+</script>
+</body>
+</html>
