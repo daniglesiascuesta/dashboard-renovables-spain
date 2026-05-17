@@ -11,6 +11,11 @@ class BOCYLScraper(BaseScraper):
     Frecuencia: diaria (lunes a viernes)
     Competencia: proyectos renovables en Castilla y León
     Relevancia: ⭐⭐⭐⭐⭐ — comunidad con mayor volumen renovable de España
+
+    Estrategia de scraping:
+    - La página principal del boletín lista documentos por ID (BOCYL-D-...)
+    - Cada documento tiene una versión HTML con el texto completo
+    - Accedemos a cada documento individualmente para extraer título y texto
     """
 
     BASE_URL = "https://bocyl.jcyl.es"
@@ -29,34 +34,53 @@ class BOCYLScraper(BaseScraper):
 
         soup = BeautifulSoup(respuesta.text, "html.parser")
 
-        # El BOCYL estructura sus items en divs con clase 'itemSumario'
-        items = soup.find_all("div", class_="itemSumario")
+        # Obtenemos todos los enlaces a versiones HTML de documentos
+        enlaces_html = []
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if "html/" in href and href.endswith(".do"):
+                enlace_completo = href if href.startswith("http") else f"{self.BASE_URL}/{href}"
+                id_pub = href.split("/")[-1].replace(".do", "")
+                enlaces_html.append({
+                    "enlace_html": enlace_completo,
+                    "enlace_pdf": enlace_completo.replace("/html/", "/pdf/").replace(".do", ".pdf").replace("html/2026", "boletines/2026"),
+                    "id_publicacion": f"BOCYL-{id_pub}"
+                })
 
-        if not items:
-            # Intento alternativo con estructura de lista
-            items = soup.find_all("li", class_="sumario")
-
-        if not items:
+        if not enlaces_html:
             return []
 
+        # Entramos en cada documento y extraemos el título
         publicaciones = []
-        for item in items:
-            titulo = item.get_text(strip=True)
-            enlace_tag = item.find("a", href=True)
+        for doc in enlaces_html:
+            try:
+                r = requests.get(doc["enlace_html"], timeout=10)
+                if r.status_code != 200:
+                    continue
 
-            if not enlace_tag:
+                s = BeautifulSoup(r.text, "html.parser")
+                parrafos = [
+                    p.get_text(strip=True)
+                    for p in s.find_all("p")
+                    if len(p.get_text(strip=True)) > 50
+                ]
+
+                if not parrafos:
+                    continue
+
+                titulo = parrafos[0]
+                texto_completo = " ".join(parrafos)
+
+                publicaciones.append({
+                    "titulo": titulo,
+                    "enlace": doc["enlace_pdf"],
+                    "texto_completo": texto_completo,
+                    "id_publicacion": doc["id_publicacion"],
+                    "fuente": self.nombre_fuente
+                })
+
+            except Exception as e:
+                print(f"⚠️ [BOCYL] Error leyendo documento {doc['id_publicacion']}: {e}")
                 continue
-
-            href = enlace_tag["href"]
-            enlace = href if href.startswith("http") else self.BASE_URL + href
-            id_pub = href.split("=")[-1] if "=" in href else ""
-
-            publicaciones.append({
-                "titulo": titulo,
-                "enlace": enlace,
-                "texto_completo": titulo,
-                "id_publicacion": f"BOCYL-{id_pub}",
-                "fuente": self.nombre_fuente
-            })
 
         return publicaciones
