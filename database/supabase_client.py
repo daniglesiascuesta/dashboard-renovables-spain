@@ -1,0 +1,74 @@
+import requests
+import os
+
+
+class SupabaseClient:
+    """
+    Cliente para interactuar con la base de datos Supabase.
+    Gestiona todas las operaciones de lectura y escritura de proyectos renovables.
+    """
+
+    def __init__(self):
+        self.url = os.environ.get("SUPABASE_URL")
+        self.key = os.environ.get("SUPABASE_KEY")
+        self.headers = {
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+        }
+
+    def proyecto_existe(self, id_publicacion: str, fuente: str) -> bool:
+        """Comprueba si un proyecto ya está guardado para evitar duplicados."""
+        if not id_publicacion:
+            return False
+        respuesta = requests.get(
+            f"{self.url}/rest/v1/proyectos",
+            headers=self.headers,
+            params={
+                "id_publicacion": f"eq.{id_publicacion}",
+                "fuente": f"eq.{fuente}",
+                "select": "id"
+            }
+        )
+        return len(respuesta.json()) > 0
+
+    def guardar_proyecto(self, datos: dict) -> bool:
+        """
+        Guarda un proyecto en Supabase.
+        Devuelve True si se guardó correctamente, False si hubo error.
+        """
+        # Evitar duplicados
+        if self.proyecto_existe(datos.get("id_publicacion", ""), datos.get("fuente", "")):
+            print(f"⏭️ Ya existe: {datos.get('nombre_proyecto')} [{datos.get('fuente')}]")
+            return False
+
+        respuesta = requests.post(
+            f"{self.url}/rest/v1/proyectos",
+            headers=self.headers,
+            json=datos
+        )
+
+        if respuesta.status_code in [200, 201]:
+            print(f"✅ Guardado: {datos.get('nombre_proyecto')} [{datos.get('fuente')}]")
+            return True
+        else:
+            print(f"⚠️ Error guardando [{respuesta.status_code}]: {respuesta.text[:100]}")
+            return False
+
+    def guardar_proyectos(self, lista: list[dict]) -> dict:
+        """Guarda una lista de proyectos y devuelve estadísticas."""
+        guardados = 0
+        duplicados = 0
+        errores = 0
+
+        for datos in lista:
+            resultado = self.guardar_proyecto(datos)
+            if resultado is True:
+                guardados += 1
+            elif resultado is False:
+                duplicados += 1
+            else:
+                errores += 1
+
+        return {"guardados": guardados, "duplicados": duplicados, "errores": errores}
