@@ -59,44 +59,74 @@ INSTRUCCIONES DE EXTRACCIÓN:
    - "IP" → Información Pública
    - "AAP+DIA" → Tramitación conjunta AAP y DIA
    - "AAP+AAC" → Tramitación conjunta AAP y AAC
+   - "AAP+DUP" → Tramitación conjunta AAP y DUP
    - "MOD" → Modificación de proyecto
    - "TIT" → Cambio de titularidad
-   - "RES" → Resolución administrativa
+   - "RES" → Resolución administrativa o expropiación
    - "LIC" → Licencia o permiso municipal
    - "OTRO" → Cualquier otro trámite
 
-2. tecnologia: Tecnología principal:
-   - "Fotovoltaico", "Eólico", "Eólico offshore", "BESS",
-   - "Hibridación", "LAT", "SET", "Termosolar", "Hidráulica", "OTRO"
+2. tecnologia: Tecnología principal del proyecto:
+   - "Fotovoltaico" → plantas solares fotovoltaicas
+   - "Eólico" → parques eólicos onshore
+   - "Eólico offshore" → parques eólicos marinos
+   - "BESS" → sistemas de almacenamiento por batería
+   - "Hibridación" → proyectos que combinan tecnologías
+   - "LAT" → línea de alta tensión o infraestructura de evacuación
+   - "SET" → subestación eléctrica transformadora
+   - "Termosolar" → plantas termosolares
+   - "Hidráulica" → centrales hidroeléctricas
+   - "OTRO" → tecnología no identificada claramente
 
-3. nombre_proyecto: Nombre oficial completo del proyecto.
+3. nombre_proyecto: Nombre oficial del proyecto.
+   - Busca el nombre entre comillas «» o entre comillas normales ""
+   - Si no hay nombre oficial usa una descripción corta y descriptiva como "Planta solar Palencia" o "Parque eólico León"
+   - NUNCA devuelvas null — siempre debe haber un nombre
 
-4. empresa_promotora: Razón social completa. null si no aparece.
+4. empresa_promotora: Razón social completa incluyendo forma jurídica (SL, SAU, SA, SLU...).
+   - Si aparecen varias empresas, incluye la promotora principal
+   - null solo si no aparece ninguna empresa en el texto
 
-5. potencia_mw: Número decimal en MW. Convierte kW dividiendo entre 1000. null si no aparece.
+5. potencia_mw: Potencia en MW como número decimal.
+   - Convierte kW a MW dividiendo entre 1000
+   - MWp, MWn, MWac, MWdc → todos se expresan en MW
+   - Si hay varias potencias (instalada + evacuación), usa la potencia instalada
+   - null solo si no aparece ninguna potencia en el texto
 
-6. provincias: Lista de provincias afectadas con tildes correctas.
+6. provincias: Lista de todas las provincias afectadas con tildes correctas.
+   - Ejemplo: ["Palencia", "Burgos", "León"]
 
-7. municipios: Lista de municipios mencionados.
+7. municipios: Lista de todos los municipios mencionados.
+   - Ejemplo: ["Villamediana", "Tordesillas"]
 
 8. comunidades_autonomas: Lista de comunidades autónomas afectadas, nombre oficial completo.
+   - Ejemplo: ["Castilla y León", "Cataluña"]
 
 9. estado_administrativo:
-   - "Información pública", "Autorizado", "Denegado",
-   - "En tramitación", "Modificación aprobada", "Caducado"
+   - "Información pública" → en fase de exposición pública
+   - "Autorizado" → resolución favorable emitida
+   - "Denegado" → resolución desfavorable
+   - "En tramitación" → proceso en curso sin resolución final
+   - "Modificación aprobada" → modificación de proyecto aprobada
+   - "Caducado" → expediente caducado o archivado
 
 10. organismo_publicador: Organismo que publica el anuncio.
+    - Ejemplo: "Dirección General de Política Energética y Minas"
+    - Ejemplo: "Servicio Territorial de Industria de León"
 
-11. relevante_renovables: true si es del sector renovable o infraestructura asociada. false si no.
+11. relevante_renovables: 
+    - true → proyecto claramente del sector renovable o infraestructura eléctrica asociada
+    - false → si el texto trata principalmente de gasoductos, gas natural, biometano, nuclear, carbón o infraestructuras no energéticas
 
-12. resumen: Resumen ejecutivo en máximo 2 frases, claro y profesional, en español.
+12. resumen: Resumen ejecutivo en exactamente 2 frases, profesional y directo.
+    - Frase 1: qué trámite es y para qué proyecto
+    - Frase 2: características principales (potencia, ubicación, empresa si aparece)
 
-REGLAS:
-- Usa siempre caracteres españoles: á, é, í, ó, ú, ñ
-- Si un campo no puede determinarse con certeza, devuelve null
-- No inventes datos que no aparezcan en el texto
+REGLAS CRÍTICAS:
+- Usa siempre caracteres españoles correctos: á, é, í, ó, ú, ñ, ü
+- nombre_proyecto NUNCA puede ser null — usa descripción si no hay nombre oficial
+- Si el texto menciona principalmente gasoducto, biometano o gas natural → relevante_renovables: false
+- No inventes datos que no aparezcan explícitamente en el texto
 - Las listas vacías se representan como []
-- Si el texto menciona gasoducto, biometano, gas natural, oleoducto o energía nuclear, devuelve relevante_renovables: false aunque contenga otras palabras del sector eléctrico
-- Si no hay nombre oficial de proyecto, usa una descripción corta del tipo "Conexión red Palencia" o "Ocupación terrenos Valladolid", nunca devuelvas null en nombre_proyecto
 
 Devuelve ÚNICAMENTE el JSON válido, sin texto adicional ni bloques markdown."""
