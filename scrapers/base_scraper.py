@@ -6,55 +6,111 @@ from bs4 import BeautifulSoup
 
 class BaseScraper(ABC):
     """
-    Clase base para todos los scrapers de boletines oficiales.
-    Cada nuevo boletín hereda de esta clase e implementa sus métodos.
+    Clase base para todos los scrapers de boletines oficiales españoles.
+    Cada fuente hereda de esta clase e implementa sus métodos específicos.
+    Arquitectura modular y escalable para incorporar nuevos boletines.
     """
 
+    # ── INCLUSIONES ────────────────────────────────────────────────────────────
+    # Términos que identifican publicaciones relevantes para el sector renovable
     KEYWORDS = [
-        "fotovoltaic", "solar", "eólico", "eólica",
-        "almacenamiento", "bess", "batería", "renovable",
-        "evacuación", "subestación", "hibridación",
-        "parque eólico", "planta solar", "autorización ambiental",
-        "declaración impacto", "utilidad pública",
-        "generación eléctrica", "industria y energía",
-        "aerogenerador", "autoconsumo"
+        # Tecnologías de generación
+        "fotovoltaic", "fotovoltaica", "solar fotovoltaic",
+        "planta solar", "parque solar", "instalación solar",
+        "eólico", "eólica", "parque eólico", "aerogenerador",
+        "turbina eólica", "energía eólica", "offshore", "onshore",
+        "termosolar", "solar termoeléctric", "concentración solar",
+        "hidráulica", "minicentral", "central hidroeléctrica",
+        "biomasa",
+
+        # Almacenamiento
+        "almacenamiento", "bess", "batería", "baterías",
+        "acumulación energética", "sistema de almacenamiento",
+
+        # Hibridación
+        "hibridación", "híbrido", "hibrida", "hibridado",
+
+        # Infraestructura de evacuación
+        "evacuación", "línea de alta tensión", "línea alta tensión",
+        "subestación eléctrica", "subestación transformadora",
+        "centro de seccionamiento", "punto de conexión",
+        "infraestructura de evacuación", "línea de evacuación",
+
+        # Trámites administrativos del sector
+        "autorización administrativa previa",
+        "autorización administrativa de construcción",
+        "autorización administrativa de explotación",
+        "declaración de impacto ambiental",
+        "declaración de utilidad pública",
+        "información pública",
+        "autoconsumo colectivo", "autoconsumo industrial",
+
+        # Términos generales del sector
+        "energía renovable", "generación renovable",
+        "instalación de producción de energía eléctrica",
+        "industria y energía",
     ]
 
+    # ── EXCLUSIONES ────────────────────────────────────────────────────────────
+    # Términos que descartan publicaciones aunque contengan keywords de inclusión
     KEYWORDS_EXCLUSION = [
-        "gasoducto",
-        "biometano",
-        "gas natural",
-        "oleoducto",
-        "nuclear",
-        "carbón",
-        "térmica convencional"
+        # Gas y combustibles fósiles
+        "gasoducto", "gas natural", "gas licuado", "gnl", "glp",
+        "biometano", "metano", "propano", "butano",
+        "oleoducto", "oleoducto", "combustible fósil",
+        "central de ciclo combinado", "ciclo combinado",
+        "renovación de la canalización",
+
+        # Nuclear
+        "nuclear", "central nuclear", "uranio", "fisión",
+
+        # Carbón y térmica convencional
+        "central térmica", "térmica convencional",
+        "carbón", "hulla", "antracita",
+
+        # Infraestructuras no energéticas
+        "carretera", "autopista", "autovía", "ferroviaria",
+        "ferrocarril", "alta velocidad", "saneamiento",
+        "abastecimiento de agua", "residuos urbanos",
     ]
 
     @property
     @abstractmethod
     def nombre_fuente(self) -> str:
-        """Nombre identificador de la fuente. Ej: 'BOE', 'BOCYL'"""
+        """Nombre identificador de la fuente. Ej: 'BOE', 'BOCYL', 'BOA'"""
         pass
 
     @abstractmethod
     def obtener_publicaciones(self, fecha: date) -> list[dict]:
         """
         Obtiene todas las publicaciones de una fecha concreta.
-        Devuelve lista de dicts con: titulo, enlace, texto_completo, id_publicacion
+        Devuelve lista de dicts con: titulo, enlace, texto_completo, id_publicacion, fuente
         """
         pass
 
-    def es_relevante(self, texto: str) -> bool:
-        """Filtra si una publicación es relevante para el sector renovable."""
-        texto_lower = texto.lower()
-        tiene_keyword = any(kw in texto_lower for kw in self.KEYWORDS)
-        tiene_exclusion = any(kw in texto_lower for kw in self.KEYWORDS_EXCLUSION)
-        return tiene_keyword and not tiene_exclusion
+    def es_relevante(self, titulo: str, texto_completo: str = "") -> bool:
+        """
+        Determina si una publicación es relevante para el sector renovable.
+        Analiza tanto el título como el texto completo para mayor precisión.
+        Una publicación es relevante si contiene keywords de inclusión
+        y NO contiene keywords de exclusión en ninguna de las dos fuentes.
+        """
+        texto_analisis = f"{titulo} {texto_completo}".lower()
+        titulo_lower = titulo.lower()
+
+        # Verificar exclusiones — si aparecen en título o texto, descartamos
+        for kw in self.KEYWORDS_EXCLUSION:
+            if kw in texto_analisis:
+                return False
+
+        # Verificar inclusiones — al menos una debe estar presente en el título
+        tiene_keyword_titulo = any(kw in titulo_lower for kw in self.KEYWORDS)
+        return tiene_keyword_titulo
 
     def obtener_con_reintento(self, dias_atras: int = 5) -> tuple[list[dict], date]:
         """
         Intenta obtener publicaciones de hoy.
-        Si no hay boletín (fin de semana, festivo), retrocede hasta 5 días.
+        Si no hay boletín (fin de semana, festivo), retrocede hasta dias_atras días.
         """
         for i in range(dias_atras):
             fecha = date.today() - timedelta(days=i)
@@ -71,7 +127,16 @@ class BaseScraper(ABC):
         return [], date.today()
 
     def filtrar_relevantes(self, publicaciones: list[dict]) -> list[dict]:
-        """Filtra solo las publicaciones relevantes para renovables."""
-        relevantes = [p for p in publicaciones if self.es_relevante(p.get("titulo", ""))]
+        """
+        Filtra las publicaciones relevantes para renovables.
+        Usa tanto el título como el texto completo para mayor precisión.
+        """
+        relevantes = [
+            p for p in publicaciones
+            if self.es_relevante(
+                p.get("titulo", ""),
+                p.get("texto_completo", "")
+            )
+        ]
         print(f"✅ [{self.nombre_fuente}] Relevantes: {len(relevantes)} de {len(publicaciones)}")
         return relevantes
