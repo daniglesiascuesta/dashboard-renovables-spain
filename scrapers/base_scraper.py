@@ -20,6 +20,16 @@ class BaseScraper(ABC):
         "aerogenerador", "autoconsumo"
     ]
 
+    KEYWORDS_EXCLUSION = [
+        "gasoducto",
+        "biometano",
+        "gas natural",
+        "oleoducto",
+        "nuclear",
+        "carbón",
+        "térmica convencional"
+    ]
+
     @property
     @abstractmethod
     def nombre_fuente(self) -> str:
@@ -37,7 +47,9 @@ class BaseScraper(ABC):
     def es_relevante(self, texto: str) -> bool:
         """Filtra si una publicación es relevante para el sector renovable."""
         texto_lower = texto.lower()
-        return any(kw in texto_lower for kw in self.KEYWORDS)
+        tiene_keyword = any(kw in texto_lower for kw in self.KEYWORDS)
+        tiene_exclusion = any(kw in texto_lower for kw in self.KEYWORDS_EXCLUSION)
+        return tiene_keyword and not tiene_exclusion
 
     def obtener_con_reintento(self, dias_atras: int = 5) -> tuple[list[dict], date]:
         """
