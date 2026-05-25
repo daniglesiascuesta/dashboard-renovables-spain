@@ -96,5 +96,7 @@ REGLAS:
 - Si un campo no puede determinarse con certeza, devuelve null
 - No inventes datos que no aparezcan en el texto
 - Las listas vacías se representan como []
+- Si el texto menciona gasoducto, biometano, gas natural, oleoducto o energía nuclear, devuelve relevante_renovables: false aunque contenga otras palabras del sector eléctrico
+- Si no hay nombre oficial de proyecto, usa una descripción corta del tipo "Conexión red Palencia" o "Ocupación terrenos Valladolid", nunca devuelvas null en nombre_proyecto
 
 Devuelve ÚNICAMENTE el JSON válido, sin texto adicional ni bloques markdown."""
