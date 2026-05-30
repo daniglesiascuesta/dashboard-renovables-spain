@@ -117,7 +117,7 @@ INSTRUCCIONES DE EXTRACCIÓN:
     - Ejemplo: "Dirección General de Política Energética y Minas"
     - Ejemplo: "Servicio Territorial de Industria de León"
 
-11. relevante_renovables: 
+11. relevante_renovables:
     - true → proyecto claramente del sector renovable o infraestructura eléctrica asociada
     - false → si el texto trata principalmente de gasoductos, gas natural, biometano, nuclear, carbón o infraestructuras no energéticas
 
@@ -125,11 +125,26 @@ INSTRUCCIONES DE EXTRACCIÓN:
     - Frase 1: qué trámite es y para qué proyecto
     - Frase 2: características principales (potencia, ubicación, empresa si aparece)
 
+13. fecha_solicitud: Fecha en que el promotor presentó/registró/solicitó formalmente el expediente ante la administración.
+    - Formato: "YYYY-MM-DD"
+    - Extrae SOLO si aparece de forma explícita en el texto: "con fecha X de X de X se registró/presentó/solicitó", "solicitud de fecha...", "presentada el..."
+    - Si aparecen varias fechas de solicitud, usa la más antigua
+    - Si no aparece explícitamente → null
+    - NUNCA inferir ni inventar
+
+14. fecha_resolucion: Fecha en que la administración emitió su resolución/autorización.
+    - Formato: "YYYY-MM-DD"
+    - Extrae SOLO si aparece de forma explícita: "Resolución de X de X de X", "resuelve con fecha...", "se autoriza mediante resolución de..."
+    - Si aparecen varias resoluciones, usa la más reciente relevante al proyecto
+    - Si no aparece explícitamente → null
+    - NUNCA inferir ni inventar
+
 REGLAS CRÍTICAS:
 - Usa siempre caracteres españoles correctos: á, é, í, ó, ú, ñ, ü
 - nombre_proyecto NUNCA puede ser null — usa descripción si no hay nombre oficial
 - Si el texto menciona principalmente gasoducto, biometano o gas natural → relevante_renovables: false
 - No inventes datos que no aparezcan explícitamente en el texto
 - Las listas vacías se representan como []
+- fecha_solicitud y fecha_resolucion son null por defecto — solo rellena si hay certeza absoluta
 
 Devuelve ÚNICAMENTE el JSON válido, sin texto adicional ni bloques markdown."""
