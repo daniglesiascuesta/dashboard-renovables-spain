@@ -76,6 +76,12 @@ class BaseScraper(ABC):
         "aguas superficiales", "aguas subterráneas",
         "caudal ecológico", "perímetro de protección",
         "dominio público hidráulico",
+
+        # Red de distribución de baja y media tensión no asociada a renovables
+        "13,2 kv", "13.2 kv", "15 kv", "20 kv",
+        "red de distribución", "electrificación de",
+        "naves industrial", "granja", "polígono industrial",
+        "alumbrado", "suministro eléctrico",
     ]
 
     @property
