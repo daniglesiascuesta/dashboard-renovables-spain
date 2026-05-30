@@ -59,10 +59,11 @@ def main():
     db = SupabaseClient()
 
     # Fuentes activas — añadir nuevas fuentes aquí
+    # BOA deshabilitado: su web migró a SPA y bloquea el endpoint BRSCGI a scrapers;
+    # requiere JavaScript para funcionar. Pendiente de alternativa.
     fuentes = [
         BOEScraper(),
         BOCYLScraper(),
-        BOAScraper(),
         BOJAScraper(),
         DOEScraper(),
         DOCMScraper(),

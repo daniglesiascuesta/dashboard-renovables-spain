@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import requests
 from bs4 import BeautifulSoup
 from datetime import date
@@ -11,16 +13,19 @@ class BOJAScraper(BaseScraper):
     Frecuencia: diaria (lunes a viernes)
     Competencia: proyectos renovables en Andalucía
 
-    Estrategia de scraping (dos pasos):
-    1. /eboja/YYYYMMDD.html → obtiene el número de boletín del día (e.g. "2026/102/")
-    2. /eboja/2026/102/     → lista de entradas individuales
+    Estrategia de scraping (tres pasos):
+    1. /eboja/YYYYMMDD.html → número de boletín del día (e.g. "2026/102/")
+    2. /boja/YYYY/NNN/      → lista de entradas individuales (/boja/2026/102/1 ... /N)
+    3. /boja/YYYY/NNN/N     → texto completo + enlace PDF de cada entrada
 
-    Estructura del HTML (verificada):
+    Estructura verificada de /boja/YYYY/NNN/:
+      <a href="/boja/2026/102/1">...</a>  (una por entrada)
+
+    Estructura verificada de /boja/YYYY/NNN/N:
       <p>Título de la disposición...</p>
-      <p><a href="BOJA26-102-XXXXX-XXXX-01_XXXXXXXX.pdf">PDF oficial auténtico</a></p>
-      <p><a href="/boja/2026/102/1">Otros formatos</a></p>
-
-    El <p> anterior al enlace PDF contiene el título.
+      <p>Atención: El texto que se muestra...</p>  ← ignorar
+      <p>Cuerpo de la disposición...</p>
+      <a href="BOJA26-102-XXXXX-XXXX-01_XXXXXXXX.pdf">Descargar PDF</a>
     """
 
     BASE_URL = "https://www.juntadeandalucia.es"
@@ -31,71 +36,102 @@ class BOJAScraper(BaseScraper):
 
     def obtener_publicaciones(self, fecha: date) -> list[dict]:
         try:
-            # Paso 1: obtener el número de boletín correspondiente a la fecha
+            # Paso 1: número de boletín del día
             url_fecha = f"{self.BASE_URL}/eboja/{fecha.strftime('%Y%m%d')}.html"
             r = requests.get(url_fecha, timeout=15)
             if r.status_code != 200:
                 return []
 
-            boletin_rel = self._extraer_url_boletin(r.text, str(fecha.year))
-            if not boletin_rel:
+            boletin_num = self._extraer_numero_boletin(r.text, str(fecha.year))
+            if not boletin_num:
                 return []
 
-            # Paso 2: obtener las entradas del boletín
-            url_boletin = f"{self.BASE_URL}/eboja/{boletin_rel}"
-            r2 = requests.get(url_boletin, timeout=15)
+            # Paso 2: lista de entradas del boletín
+            url_indice = f"{self.BASE_URL}/boja/{boletin_num}/"
+            r2 = requests.get(url_indice, timeout=15)
             if r2.status_code != 200:
                 return []
 
-            return self._parsear_boletin(r2.text, boletin_rel.rstrip("/"))
+            entry_urls = self._extraer_entradas(r2.text, boletin_num)
+            if not entry_urls:
+                return []
+
+            # Paso 3: contenido de cada entrada individual
+            publicaciones = []
+            for url_entrada in entry_urls:
+                pub = self._parsear_entrada(url_entrada, boletin_num)
+                if pub:
+                    publicaciones.append(pub)
+
+            return publicaciones
 
         except Exception as e:
             print(f"⚠️ [BOJA] Error: {e}")
             return []
 
-    def _extraer_url_boletin(self, html: str, anio: str) -> str:
-        """Extrae la URL relativa del boletín ordinario del día (e.g. '2026/102/')."""
+    def _extraer_numero_boletin(self, html: str, anio: str) -> str:
+        """Devuelve el path del boletín ordinario, e.g. '2026/102'."""
         soup = BeautifulSoup(html, "html.parser")
         for a in soup.find_all("a", href=True):
             href = a["href"]
-            # Boletín ordinario: "2026/102/" — excluye complementarios (c01, c02...)
+            # Boletín ordinario: "2026/102/" — excluye complementarios (c01, c02…)
             if href.startswith(anio + "/") and "/c" not in href and href.endswith("/"):
-                return href
+                return href.rstrip("/")
         return ""
 
-    def _parsear_boletin(self, html: str, boletin_path: str) -> list[dict]:
-        """
-        Extrae entradas individuales de la página del boletín.
-        Identifica cada entrada buscando <p> que contienen solo el enlace PDF (BOJA*.pdf),
-        y toma el <p> inmediatamente anterior como título.
-        """
+    def _extraer_entradas(self, html: str, boletin_num: str) -> list[str]:
+        """Devuelve lista de URLs absolutas a las entradas individuales."""
         soup = BeautifulSoup(html, "html.parser")
-        publicaciones = []
+        urls = []
+        prefix = f"/boja/{boletin_num}/"
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if href.startswith(prefix) and href[len(prefix):].isdigit():
+                urls.append(f"{self.BASE_URL}{href}")
+        return urls
 
-        for p in soup.find_all("p"):
-            a_tags = p.find_all("a", href=True)
-            if len(a_tags) != 1:
-                continue
-            href = a_tags[0]["href"]
-            if not (href.endswith(".pdf") and href.startswith("BOJA")):
-                continue
+    def _parsear_entrada(self, url: str, boletin_num: str) -> dict | None:
+        """Fetches una entrada individual y extrae título, texto y PDF."""
+        try:
+            r = requests.get(url, timeout=15)
+            if r.status_code != 200:
+                return None
 
-            prev_p = p.find_previous_sibling("p")
-            if not prev_p:
-                continue
-            titulo = prev_p.get_text(strip=True)
-            if not titulo:
-                continue
+            soup = BeautifulSoup(r.text, "html.parser")
 
-            enlace = f"{self.BASE_URL}/eboja/{boletin_path}/{href}"
-            id_pub = href.replace(".pdf", "")
+            # Párrafos con contenido real (excluye el disclaimer "Atención:")
+            parrafos = [
+                p.get_text(strip=True)
+                for p in soup.find_all("p")
+                if len(p.get_text(strip=True)) > 30
+                and not p.get_text(strip=True).startswith("Atención:")
+            ]
+            if not parrafos:
+                return None
 
-            publicaciones.append({
+            titulo = parrafos[0]
+            texto_completo = " ".join(parrafos)
+
+            # Enlace PDF: href empieza por "BOJA" y termina en ".pdf"
+            pdf_link = next(
+                (a["href"] for a in soup.find_all("a", href=True)
+                 if a["href"].startswith("BOJA") and a["href"].endswith(".pdf")),
+                None
+            )
+            if not pdf_link:
+                return None
+
+            enlace = f"{self.BASE_URL}/boja/{boletin_num}/{pdf_link}"
+            id_pub = pdf_link.replace(".pdf", "")
+
+            return {
                 "titulo": titulo,
                 "enlace": enlace,
-                "texto_completo": titulo,
+                "texto_completo": texto_completo,
                 "id_publicacion": id_pub,
                 "fuente": self.nombre_fuente,
-            })
+            }
 
-        return publicaciones
+        except Exception as e:
+            print(f"⚠️ [BOJA] Error en entrada {url}: {e}")
+            return None

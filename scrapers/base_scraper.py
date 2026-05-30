@@ -40,7 +40,6 @@ class BaseScraper(ABC):
         "autorización administrativa de explotación",
         "declaración de impacto ambiental",
         "declaración de utilidad pública",
-        "información pública",
         "autoconsumo colectivo", "autoconsumo industrial",
 
         # Términos generales del sector
