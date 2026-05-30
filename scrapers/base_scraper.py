@@ -51,13 +51,14 @@ class BaseScraper(ABC):
 
     # ── EXCLUSIONES ────────────────────────────────────────────────────────────
     # Términos que descartan publicaciones aunque contengan keywords de inclusión
-    KEYWORDS_EXCLUSION = [
+    EXCLUDE_KEYWORDS = [
         # Gas y combustibles fósiles
         "gasoducto", "gas natural", "gas licuado", "gnl", "glp",
         "biometano", "metano", "propano", "butano",
         "oleoducto", "oleoducto", "combustible fósil",
         "central de ciclo combinado", "ciclo combinado",
         "renovación de la canalización",
+        "biomasa",
 
         # Nuclear
         "nuclear", "central nuclear", "uranio", "fisión",
@@ -109,7 +110,7 @@ class BaseScraper(ABC):
         titulo_lower = titulo.lower()
 
         # Verificar exclusiones — si aparecen en título o texto, descartamos
-        for kw in self.KEYWORDS_EXCLUSION:
+        for kw in self.EXCLUDE_KEYWORDS:
             if kw in texto_analisis:
                 return False
 

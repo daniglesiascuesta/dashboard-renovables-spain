@@ -43,7 +43,7 @@ class BOCYLScraper(BaseScraper):
                 id_pub = href.split("/")[-1].replace(".do", "")
                 enlaces_html.append({
                     "enlace_html": enlace_completo,
-                    "enlace_pdf": enlace_completo.replace("/html/", "/pdf/").replace(".do", ".pdf").replace("html/2026", "boletines/2026"),
+                    "enlace_pdf": enlace_completo.replace("/html/", "/pdf/").replace(".do", ".pdf").replace(f"html/{fecha.year}", f"boletines/{fecha.year}"),
                     "id_publicacion": id_pub
                 })
 

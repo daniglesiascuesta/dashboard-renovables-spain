@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import requests
 from datetime import date
 from scrapers.base_scraper import BaseScraper
@@ -9,16 +11,16 @@ class BOAScraper(BaseScraper):
     Web: https://www.boa.aragon.es
     Frecuencia: diaria (lunes a viernes)
     Competencia: proyectos renovables en Aragón
-    Relevancia: ⭐⭐⭐⭐⭐ — segunda comunidad con mayor volumen renovable de España
 
-    Estrategia: el BOA expone el texto completo del último boletín publicado
-    via BRSCGI. Cada documento tiene un código CSV único: BOA{YYYYMMDD}{seq}.
+    El endpoint VERDOC devuelve el último boletín publicado en texto plano.
+    Cada publicación tiene un código CSV único: BOA{YYYYMMDD}{seq}.
+    Filtramos por fecha usando ese código para devolver solo el día pedido.
     """
 
     BASE_URL = "https://www.boa.aragon.es"
     SUMARIO_URL = (
         f"{BASE_URL}/cgi-bin/EBOA/BRSCGI"
-        f"?CMD=VERDOC&BASE=BBOA&DOCR=1&SEC=BUSQUEDA_AVANZADA&SEPARADOR="
+        "?CMD=VERDOC&BASE=BBOA&DOCR=1&SEC=BUSQUEDA_AVANZADA&SEPARADOR="
     )
 
     @property
@@ -26,27 +28,22 @@ class BOAScraper(BaseScraper):
         return "BOA"
 
     def obtener_publicaciones(self, fecha: date) -> list[dict]:
-    try:
-        respuesta = requests.get(self.SUMARIO_URL, timeout=20)
-        print(f"🔍 [BOA] Status: {respuesta.status_code}")
-        print(f"🔍 [BOA] Content-Type: {respuesta.headers.get('Content-Type', 'unknown')}")
+        try:
+            respuesta = requests.get(self.SUMARIO_URL, timeout=20)
+            if respuesta.status_code != 200:
+                return []
 
-        texto = respuesta.content.decode("latin-1", errors="ignore")
-        print(f"🔍 [BOA] Longitud texto: {len(texto)}")
-        print(f"🔍 [BOA] 'csv: BOA' en texto: {'csv: BOA' in texto}")
-        print(f"🔍 [BOA] Primeros 300 chars: {texto[:300]}")
+            texto = respuesta.content.decode("latin-1", errors="ignore")
+            if not texto or "csv: BOA" not in texto:
+                return []
 
-        if respuesta.status_code != 200:
+            publicaciones = self._parsear_texto_boletin(texto)
+            fecha_str = fecha.strftime("%Y%m%d")
+            return [p for p in publicaciones if fecha_str in p["id_publicacion"]]
+
+        except Exception as e:
+            print(f"⚠️ [BOA] Error: {e}")
             return []
-
-        if not texto or "csv: BOA" not in texto:
-            return []
-
-        return self._parsear_texto_boletin(texto)
-
-    except Exception as e:
-        print(f"⚠️ [BOA] Error: {e}")
-        return []
 
     def _parsear_texto_boletin(self, texto: str) -> list[dict]:
         """Divide el boletín en publicaciones individuales por código CSV."""
@@ -57,7 +54,6 @@ class BOAScraper(BaseScraper):
 
         for linea in lineas:
             linea = linea.strip()
-
             if linea.startswith("csv: BOA") and len(linea) > 12:
                 if item_actual and csv_actual:
                     pub = self._construir_publicacion(item_actual, csv_actual)
@@ -65,11 +61,9 @@ class BOAScraper(BaseScraper):
                         publicaciones.append(pub)
                 csv_actual = linea.replace("csv: ", "").strip()
                 item_actual = []
-            else:
-                if linea and not linea.startswith("Depósito legal"):
-                    item_actual.append(linea)
+            elif linea and not linea.startswith("Depósito legal"):
+                item_actual.append(linea)
 
-        # Último item
         if item_actual and csv_actual:
             pub = self._construir_publicacion(item_actual, csv_actual)
             if pub:
@@ -77,17 +71,12 @@ class BOAScraper(BaseScraper):
 
         return publicaciones
 
-    def _construir_publicacion(
-        self, lineas: list[str], csv_code: str
-    ) -> dict | None:
-        """Construye el dict de publicación."""
+    def _construir_publicacion(self, lineas: list[str], csv_code: str) -> dict | None:
         texto_completo = " ".join(lineas)
         if len(texto_completo) < 50:
             return None
-
         titulo = lineas[0] if lineas else texto_completo[:200]
         enlace = f"{self.BASE_URL}/cgi-bin/EBOA/BRSCGI?CMD=VEROBJ&MLKOB={csv_code}"
-
         return {
             "titulo": titulo,
             "enlace": enlace,

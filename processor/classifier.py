@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import anthropic
 import json
 import os
@@ -21,7 +23,7 @@ class Classifier:
             mensaje = self.cliente.messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=800,
-                messages=[{"role": "user", "content": self._prompt(publicacion["titulo"])}]
+                messages=[{"role": "user", "content": self._prompt(publicacion["titulo"], publicacion.get("texto_completo", ""))}]
             )
 
             texto = mensaje.content[0].text.strip()
@@ -42,11 +44,12 @@ class Classifier:
             print(f"⚠️ Error clasificando: {e}")
             return None
 
-    def _prompt(self, titulo: str) -> str:
+    def _prompt(self, titulo: str, texto_completo: str = "") -> str:
+        cuerpo = texto_completo if texto_completo and texto_completo != titulo else titulo
         return f"""Eres un experto en regulación y tramitación administrativa del sector de energías renovables en España. Tu tarea es analizar publicaciones de boletines oficiales y extraer información estructurada con máxima precisión.
 
 TEXTO DEL BOLETÍN:
-{titulo}
+{cuerpo}
 
 INSTRUCCIONES DE EXTRACCIÓN:
 

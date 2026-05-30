@@ -33,28 +33,31 @@ class SupabaseClient:
         )
         return len(respuesta.json()) > 0
 
-    def guardar_proyecto(self, datos: dict) -> bool:
+    def guardar_proyecto(self, datos: dict) -> str:
         """
         Guarda un proyecto en Supabase.
-        Devuelve True si se guardó correctamente, False si hubo error.
+        Devuelve "guardado", "duplicado" o "error".
         """
-        # Evitar duplicados
         if self.proyecto_existe(datos.get("id_publicacion", ""), datos.get("fuente", "")):
             print(f"⏭️ Ya existe: {datos.get('nombre_proyecto')} [{datos.get('fuente')}]")
-            return False
+            return "duplicado"
 
-        respuesta = requests.post(
-            f"{self.url}/rest/v1/proyectos",
-            headers=self.headers,
-            json=datos
-        )
+        try:
+            respuesta = requests.post(
+                f"{self.url}/rest/v1/proyectos",
+                headers=self.headers,
+                json=datos
+            )
 
-        if respuesta.status_code in [200, 201]:
-            print(f"✅ Guardado: {datos.get('nombre_proyecto')} [{datos.get('fuente')}]")
-            return True
-        else:
-            print(f"⚠️ Error guardando [{respuesta.status_code}]: {respuesta.text[:100]}")
-            return False
+            if respuesta.status_code in [200, 201]:
+                print(f"✅ Guardado: {datos.get('nombre_proyecto')} [{datos.get('fuente')}]")
+                return "guardado"
+            else:
+                print(f"⚠️ Error guardando [{respuesta.status_code}]: {respuesta.text[:100]}")
+                return "error"
+        except Exception as e:
+            print(f"⚠️ Error de red guardando {datos.get('nombre_proyecto')}: {e}")
+            return "error"
 
     def guardar_proyectos(self, lista: list[dict]) -> dict:
         """Guarda una lista de proyectos y devuelve estadísticas."""
@@ -64,9 +67,9 @@ class SupabaseClient:
 
         for datos in lista:
             resultado = self.guardar_proyecto(datos)
-            if resultado is True:
+            if resultado == "guardado":
                 guardados += 1
-            elif resultado is False:
+            elif resultado == "duplicado":
                 duplicados += 1
             else:
                 errores += 1
