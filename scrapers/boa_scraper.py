@@ -26,25 +26,27 @@ class BOAScraper(BaseScraper):
         return "BOA"
 
     def obtener_publicaciones(self, fecha: date) -> list[dict]:
-        """
-        Obtiene el último BOA publicado.
-        El parámetro fecha se usa para construir el id pero el BOA
-        siempre devuelve el boletín más reciente disponible.
-        """
-        try:
-            respuesta = requests.get(self.SUMARIO_URL, timeout=20)
-            if respuesta.status_code != 200:
-                return []
+    try:
+        respuesta = requests.get(self.SUMARIO_URL, timeout=20)
+        print(f"🔍 [BOA] Status: {respuesta.status_code}")
+        print(f"🔍 [BOA] Content-Type: {respuesta.headers.get('Content-Type', 'unknown')}")
 
-            texto = respuesta.content.decode("latin-1", errors="ignore")
-            if not texto or "csv: BOA" not in texto:
-                return []
+        texto = respuesta.content.decode("latin-1", errors="ignore")
+        print(f"🔍 [BOA] Longitud texto: {len(texto)}")
+        print(f"🔍 [BOA] 'csv: BOA' en texto: {'csv: BOA' in texto}")
+        print(f"🔍 [BOA] Primeros 300 chars: {texto[:300]}")
 
-            return self._parsear_texto_boletin(texto)
-
-        except Exception as e:
-            print(f"⚠️ [BOA] Error: {e}")
+        if respuesta.status_code != 200:
             return []
+
+        if not texto or "csv: BOA" not in texto:
+            return []
+
+        return self._parsear_texto_boletin(texto)
+
+    except Exception as e:
+        print(f"⚠️ [BOA] Error: {e}")
+        return []
 
     def _parsear_texto_boletin(self, texto: str) -> list[dict]:
         """Divide el boletín en publicaciones individuales por código CSV."""
