@@ -20,8 +20,6 @@ class BaseScraper(ABC):
         "eólico", "eólica", "parque eólico", "aerogenerador",
         "turbina eólica", "energía eólica", "offshore", "onshore",
         "termosolar", "solar termoeléctric", "concentración solar",
-        "hidráulica", "minicentral", "central hidroeléctrica",
-        "biomasa",
 
         # Almacenamiento
         "almacenamiento", "bess", "batería", "baterías",
@@ -72,6 +70,12 @@ class BaseScraper(ABC):
         "carretera", "autopista", "autovía", "ferroviaria",
         "ferrocarril", "alta velocidad", "saneamiento",
         "abastecimiento de agua", "residuos urbanos",
+
+        # Agua y concesiones no energéticas
+        "concesión de aguas", "aprovechamiento de aguas",
+        "aguas superficiales", "aguas subterráneas",
+        "caudal ecológico", "perímetro de protección",
+        "dominio público hidráulico",
     ]
 
     @property
