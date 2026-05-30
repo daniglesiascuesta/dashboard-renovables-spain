@@ -42,7 +42,7 @@ class BOAScraper(BaseScraper):
             print(f"⚠️ [BOA] Error de conexión: {e}")
             return []
 
-        texto = respuesta.text
+        texto = respuesta.content.decode("latin-1", errors="ignore")
         if not texto or fecha_codigo not in texto:
             return []
 
