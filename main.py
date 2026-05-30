@@ -11,6 +11,7 @@ Ejecución: diaria automática via GitHub Actions (lunes a viernes 13:00h)
 
 from scrapers.boe_scraper import BOEScraper
 from scrapers.bocyl_scraper import BOCYLScraper
+from scrapers.boa_scraper import BOAScraper
 from processor.classifier import Classifier
 from database.supabase_client import SupabaseClient
 
@@ -58,6 +59,7 @@ def main():
     fuentes = [
         BOEScraper(),
         BOCYLScraper(),
+        BOAScraper(),
     ]
 
     # Procesar cada fuente
