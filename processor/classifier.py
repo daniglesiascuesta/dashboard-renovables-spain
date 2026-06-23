@@ -7,8 +7,9 @@ import os
 
 class Classifier:
     """
-    Clasificador de publicaciones de boletines oficiales usando Claude.
-    Extrae información estructurada de trámites administrativos renovables.
+    Clasificador de publicaciones de boletines oficiales usando Claude Haiku.
+    Recibe texto extraído de PDFs para máxima precisión en la extracción
+    de municipios, razón social, potencia y fechas administrativas.
     """
 
     def __init__(self):
@@ -20,10 +21,13 @@ class Classifier:
         Devuelve None si no es relevante para renovables.
         """
         try:
+            # Usamos el texto completo del PDF; si no existe, el título
+            texto_entrada = publicacion.get("texto_completo") or publicacion.get("titulo", "")
+
             mensaje = self.cliente.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=800,
-                messages=[{"role": "user", "content": self._prompt(publicacion["titulo"], publicacion.get("texto_completo", ""))}]
+                max_tokens=1000,
+                messages=[{"role": "user", "content": self._prompt(texto_entrada)}]
             )
 
             texto = mensaje.content[0].text.strip()
@@ -44,12 +48,11 @@ class Classifier:
             print(f"⚠️ Error clasificando: {e}")
             return None
 
-    def _prompt(self, titulo: str, texto_completo: str = "") -> str:
-        cuerpo = texto_completo if texto_completo and texto_completo != titulo else titulo
-        return f"""Eres un experto en regulación y tramitación administrativa del sector de energías renovables en España. Tu tarea es analizar publicaciones de boletines oficiales y extraer información estructurada con máxima precisión.
+    def _prompt(self, texto: str) -> str:
+        return f"""Eres un experto en regulación y tramitación administrativa del sector de energías renovables en España. Analiza el siguiente texto extraído de un boletín oficial y extrae información estructurada con máxima precisión.
 
-TEXTO DEL BOLETÍN:
-{cuerpo}
+TEXTO DEL DOCUMENTO:
+{texto}
 
 INSTRUCCIONES DE EXTRACCIÓN:
 
@@ -70,81 +73,45 @@ INSTRUCCIONES DE EXTRACCIÓN:
    - "OTRO" → Cualquier otro trámite
 
 2. tecnologia: Tecnología principal del proyecto:
-   - "Fotovoltaico" → plantas solares fotovoltaicas
-   - "Eólico" → parques eólicos onshore
-   - "Eólico offshore" → parques eólicos marinos
-   - "BESS" → sistemas de almacenamiento por batería
-   - "Hibridación" → proyectos que combinan tecnologías
-   - "LAT" → línea de alta tensión o infraestructura de evacuación
-   - "SET" → subestación eléctrica transformadora
-   - "Termosolar" → plantas termosolares
-   - "Hidráulica" → centrales hidroeléctricas
-   - "OTRO" → tecnología no identificada claramente
+   - "Fotovoltaico", "Eólico", "Eólico offshore", "BESS",
+   - "Hibridación", "LAT", "SET", "Termosolar", "Hidráulica", "OTRO"
 
 3. nombre_proyecto: Nombre oficial del proyecto.
-   - Busca el nombre entre comillas «» o entre comillas normales ""
-   - Si no hay nombre oficial usa una descripción corta y descriptiva como "Planta solar Palencia" o "Parque eólico León"
+   - Busca el nombre entre comillas «» o ""
+   - Si no hay nombre oficial usa una descripción corta como "Planta solar Vilallonga del Camp"
    - NUNCA devuelvas null — siempre debe haber un nombre
 
-4. empresa_promotora: Razón social completa incluyendo forma jurídica (SL, SAU, SA, SLU...).
-   - Si aparecen varias empresas, incluye la promotora principal
-   - null solo si no aparece ninguna empresa en el texto
+4. empresa_promotora: Razón social COMPLETA exactamente como figura en el documento, incluyendo la forma jurídica (S.L., S.A., S.L.U., S.A.U.). Busca expresiones como "la empresa X ha solicitado", "a favor de X", "promovido por X". null solo si no aparece ninguna empresa.
 
-5. potencia_mw: Potencia en MW como número decimal.
-   - Convierte kW a MW dividiendo entre 1000
-   - MWp, MWn, MWac, MWdc → todos se expresan en MW
-   - Si hay varias potencias (instalada + evacuación), usa la potencia instalada
-   - null solo si no aparece ninguna potencia en el texto
+5. potencia_mw: Potencia en MW como número decimal. Convierte kW dividiendo entre 1000. MWp/MWn/MWac/MWdc se expresan en MW. Si hay varias, usa la potencia instalada. null si no aparece.
 
-6. provincias: Lista de todas las provincias afectadas con tildes correctas.
-   - Ejemplo: ["Palencia", "Burgos", "León"]
+6. provincias: Lista de TODAS las provincias afectadas, con tildes correctas.
 
-7. municipios: Lista de todos los municipios mencionados.
-   - Ejemplo: ["Villamediana", "Tordesillas"]
+7. municipios: Lista COMPLETA de TODOS los municipios mencionados en el documento, con tildes correctas. Es habitual que un proyecto afecte a varios municipios (planta + línea de evacuación). Extrae todos, no solo el principal.
 
 8. comunidades_autonomas: Lista de comunidades autónomas afectadas, nombre oficial completo.
-   - Ejemplo: ["Castilla y León", "Cataluña"]
 
 9. estado_administrativo:
-   - "Información pública" → en fase de exposición pública
-   - "Autorizado" → resolución favorable emitida
-   - "Denegado" → resolución desfavorable
-   - "En tramitación" → proceso en curso sin resolución final
-   - "Modificación aprobada" → modificación de proyecto aprobada
-   - "Caducado" → expediente caducado o archivado
+   - "Información pública", "Autorizado", "Denegado",
+   - "En tramitación", "Modificación aprobada", "Caducado"
 
 10. organismo_publicador: Organismo que publica el anuncio.
-    - Ejemplo: "Dirección General de Política Energética y Minas"
-    - Ejemplo: "Servicio Territorial de Industria de León"
 
-11. relevante_renovables:
-    - true → proyecto claramente del sector renovable o infraestructura eléctrica asociada
-    - false → si el texto trata principalmente de gasoductos, gas natural, biometano, nuclear, carbón o infraestructuras no energéticas
+11. relevante_renovables: true si es del sector renovable o infraestructura eléctrica asociada. false si trata principalmente de gasoducto, gas natural, biometano, nuclear, carbón, infraestructura ferroviaria/viaria, o si es un anuncio de licitación o formalización de contratos públicos (no un trámite de autorización de proyecto).
 
-12. resumen: Resumen ejecutivo en exactamente 2 frases, profesional y directo.
-    - Frase 1: qué trámite es y para qué proyecto
-    - Frase 2: características principales (potencia, ubicación, empresa si aparece)
+12. resumen: Resumen ejecutivo en exactamente 2 frases, profesional y directo. Frase 1: qué trámite es y para qué proyecto. Frase 2: características principales (potencia, ubicación, empresa).
 
-13. fecha_solicitud: Fecha en que el promotor presentó/registró/solicitó formalmente el expediente ante la administración.
-    - Formato: "YYYY-MM-DD"
-    - Extrae SOLO si aparece de forma explícita en el texto: "con fecha X de X de X se registró/presentó/solicitó", "solicitud de fecha...", "presentada el..."
-    - Si aparecen varias fechas de solicitud, usa la más antigua
-    - Si no aparece explícitamente → null
-    - NUNCA inferir ni inventar
+13. fecha_solicitud: Fecha en que se presentó o registró la solicitud. Busca expresiones como "con fecha X se solicitó", "solicitada el X", "en fecha X ... ha solicitado", "presentó solicitud el X". Formato YYYY-MM-DD. null si no aparece EXPLÍCITAMENTE en el texto.
 
-14. fecha_resolucion: Fecha en que la administración emitió su resolución/autorización.
-    - Formato: "YYYY-MM-DD"
-    - Extrae SOLO si aparece de forma explícita: "Resolución de X de X de X", "resuelve con fecha...", "se autoriza mediante resolución de..."
-    - Si aparecen varias resoluciones, usa la más reciente relevante al proyecto
-    - Si no aparece explícitamente → null
-    - NUNCA inferir ni inventar
+14. fecha_resolucion: Fecha de la resolución administrativa. Busca "Resolución de fecha X", "dictó la Resolución", "en fecha X la directora/el director general ... dictó". Formato YYYY-MM-DD. null si no aparece EXPLÍCITAMENTE en el texto.
 
 REGLAS CRÍTICAS:
 - Usa siempre caracteres españoles correctos: á, é, í, ó, ú, ñ, ü
 - nombre_proyecto NUNCA puede ser null — usa descripción si no hay nombre oficial
-- Si el texto menciona principalmente gasoducto, biometano o gas natural → relevante_renovables: false
-- No inventes datos que no aparezcan explícitamente en el texto
+- municipios: extrae TODOS los que aparezcan, es la información más valiosa
+- empresa_promotora: copia la razón social EXACTA, no la abrevies ni la inventes
+- fechas: solo si aparecen EXPLÍCITAMENTE en el texto. NUNCA las calcules ni deduzcas.
+- No inventes ningún dato que no aparezca en el texto
 - Las listas vacías se representan como []
-- fecha_solicitud y fecha_resolucion son null por defecto — solo rellena si hay certeza absoluta
 
 Devuelve ÚNICAMENTE el JSON válido, sin texto adicional ni bloques markdown."""
