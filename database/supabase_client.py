@@ -33,6 +33,15 @@ class SupabaseClient:
         )
         return len(respuesta.json()) > 0
 
+    COLUMNAS_VALIDAS = {
+        'fecha_publicacion', 'tipo_tramite', 'tecnologia', 'nombre_proyecto',
+        'empresa_promotora', 'potencia_mw', 'provincias', 'municipios',
+        'comunidades_autonomas', 'estado_administrativo', 'relevante_renovables',
+        'enlace', 'fuente', 'id_publicacion', 'texto_completo',
+        'organismo_publicador', 'resumen', 'administracion_competente',
+        'fecha_solicitud', 'fecha_resolucion'
+    }
+
     def guardar_proyecto(self, datos: dict) -> str:
         """
         Guarda un proyecto en Supabase.
@@ -41,6 +50,8 @@ class SupabaseClient:
         if self.proyecto_existe(datos.get("id_publicacion", ""), datos.get("fuente", "")):
             print(f"⏭️ Ya existe: {datos.get('nombre_proyecto')} [{datos.get('fuente')}]")
             return "duplicado"
+
+        datos = {k: v for k, v in datos.items() if k in self.COLUMNAS_VALIDAS}
 
         try:
             respuesta = requests.post(
