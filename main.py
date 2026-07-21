@@ -83,6 +83,18 @@ def main():
     print(f"✅ Total guardados:   {total['guardados']}")
     print(f"⏭️  Total duplicados:  {total['duplicados']}")
     print(f"⚠️  Total errores:     {total['errores']}")
+
+    # Enviar newsletter si hay proyectos nuevos
+    if total['guardados'] > 0:
+        print(f"\n📧 Enviando newsletter ({total['guardados']} proyectos nuevos)...")
+        try:
+            from newsletter.email_sender import enviar_newsletter
+            enviar_newsletter()
+        except Exception as e:
+            print(f"⚠️ Error enviando newsletter: {e}")
+    else:
+        print(f"\n📭 Sin proyectos nuevos hoy — newsletter no enviada")
+
     print(f"\n🏁 Pipeline completado\n")
 
 
