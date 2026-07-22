@@ -29,7 +29,7 @@ class BaseScraper(ABC):
         "hibridación", "híbrido", "hibrida", "hibridado",
 
         # Infraestructura de evacuación
-        "evacuación", "línea de alta tensión", "línea alta tensión",
+        "línea de alta tensión", "línea alta tensión",
         "subestación eléctrica", "subestación transformadora",
         "centro de seccionamiento", "punto de conexión",
         "infraestructura de evacuación", "línea de evacuación",
@@ -45,7 +45,6 @@ class BaseScraper(ABC):
         # Términos generales del sector
         "energía renovable", "generación renovable",
         "instalación de producción de energía eléctrica",
-        "industria y energía",
     ]
 
     # ── EXCLUSIONES ────────────────────────────────────────────────────────────
